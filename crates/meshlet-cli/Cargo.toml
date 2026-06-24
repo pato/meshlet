@@ -4,6 +4,8 @@ description = "CLI bookmark manager with CRDT sync (buku-like, local-first)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+keywords = ["cli", "bookmarks", "crdt", "sync", "buku"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 meshlet-core.workspace = true

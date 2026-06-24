@@ -4,6 +4,8 @@ description = "Sync wire types for meshlet: SyncRequest/SyncResponse with Loro C
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+keywords = ["crdt", "sync", "loro", "protocol"]
+categories = ["data-structures"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

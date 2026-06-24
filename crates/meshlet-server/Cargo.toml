@@ -4,6 +4,8 @@ description = "Sync relay server for meshlet: CRDT peer that stores and forwards
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+keywords = ["crdt", "sync", "server", "bookmarks", "loro"]
+categories = ["command-line-utilities"]
 
 [lib]
 path = "src/lib.rs"

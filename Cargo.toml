@@ -11,7 +11,15 @@ resolver = "2"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+authors = ["Pato Lankenau <rust@p.lankenau.io>"]
+repository = "https://github.com/pato/meshlet"
 
 [workspace.dependencies]
 meshlet-core = { path = "crates/meshlet-core", version = "0.1.0" }
 meshlet-proto = { path = "crates/meshlet-proto", version = "0.1.0" }
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+strip = true
+lto = true

@@ -4,6 +4,8 @@ description = "Core library for meshlet: CRDT bookmark storage, SQLite mirror, a
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+keywords = ["crdt", "loro", "bookmarks", "sqlite"]
+categories = ["database", "data-structures"]
 
 [dependencies]
 loro = "1"
