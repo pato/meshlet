@@ -1,7 +1,9 @@
 [package]
 name = "meshlet-proto"
+description = "Sync wire types for meshlet: SyncRequest/SyncResponse with Loro CRDT update encoding"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

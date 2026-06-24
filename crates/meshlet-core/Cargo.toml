@@ -1,7 +1,9 @@
 [package]
 name = "meshlet-core"
+description = "Core library for meshlet: CRDT bookmark storage, SQLite mirror, and web fetcher"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 loro = "1"

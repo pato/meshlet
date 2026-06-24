@@ -1,7 +1,9 @@
 [package]
 name = "meshlet-server"
+description = "Sync relay server for meshlet: CRDT peer that stores and forwards bookmark updates"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [lib]
 path = "src/lib.rs"
@@ -11,8 +13,8 @@ name = "meshlet-server"
 path = "src/main.rs"
 
 [dependencies]
-meshlet-core = { path = "../meshlet-core" }
-meshlet-proto = { path = "../meshlet-proto" }
+meshlet-core.workspace = true
+meshlet-proto.workspace = true
 loro = "1"
 anyhow = "1"
 axum = { version = "0.7", features = ["macros"] }

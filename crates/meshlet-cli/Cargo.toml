@@ -1,11 +1,13 @@
 [package]
 name = "meshlet-cli"
+description = "CLI bookmark manager with CRDT sync (buku-like, local-first)"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
-meshlet-core = { path = "../meshlet-core" }
-meshlet-proto = { path = "../meshlet-proto" }
+meshlet-core.workspace = true
+meshlet-proto.workspace = true
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 colored = "2"
