@@ -3,6 +3,7 @@ pub mod model;
 pub mod doc;
 pub mod store;
 pub mod search;
+pub mod fetch;
 
 use std::path::Path;
 
