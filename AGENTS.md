@@ -8,7 +8,7 @@ Context for AI agents working in this repo. Read this before making changes.
 
 ## Project
 
-meshlet is a CLI bookmark manager (buku-like) with multi-device CRDT sync via a self-hosted relay server. Rust workspace, edition 2021, 4 crates.
+meshlet is a CLI bookmark manager (buku-like) with multi-device CRDT sync via a self-hosted relay server. Rust workspace, edition 2024, 4 crates.
 
 ## Build / test / lint
 

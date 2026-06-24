@@ -12,7 +12,7 @@ Inspired by [buku](https://github.com/jarun/buku), with first-class multi-device
 
 ## Build
 
-Requires Rust 1.74+.
+Requires Rust 1.85+.
 
 ```sh
 cargo build --release

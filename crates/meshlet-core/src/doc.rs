@@ -212,12 +212,12 @@ impl LoroStore {
         let tags: BTreeSet<String> = {
             let mut set = BTreeSet::new();
             child.for_each(|key, value| {
-                if key == TAGS {
-                    if let ValueOrContainer::Container(Container::Map(tags_map)) = value {
-                        tags_map.for_each(|tag_key, _| {
-                            set.insert(tag_key.to_string());
-                        });
-                    }
+                if key == TAGS
+                    && let ValueOrContainer::Container(Container::Map(tags_map)) = value
+                {
+                    tags_map.for_each(|tag_key, _| {
+                        set.insert(tag_key.to_string());
+                    });
                 }
             });
             set

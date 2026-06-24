@@ -12,10 +12,10 @@ impl ServerDoc {
     pub fn load_or_create(dir: &Path) -> Self {
         let state_path = dir.join(STATE_FILE);
 
-        if let Ok(data) = std::fs::read(&state_path) {
-            if let Ok(doc) = LoroDoc::from_snapshot(&data) {
-                return Self { doc };
-            }
+        if let Ok(data) = std::fs::read(&state_path)
+            && let Ok(doc) = LoroDoc::from_snapshot(&data)
+        {
+            return Self { doc };
         }
 
         let doc = LoroDoc::new();

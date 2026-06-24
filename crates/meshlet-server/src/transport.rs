@@ -69,15 +69,15 @@ pub async fn sync_handler(
         }
     };
 
-    if !client_updates.is_empty() {
-        if let Err(e) = doc.import(&client_updates) {
-            tracing::error!("import failed: {}", e);
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "import failed"})),
-            )
-                .into_response();
-        }
+    if !client_updates.is_empty()
+        && let Err(e) = doc.import(&client_updates)
+    {
+        tracing::error!("import failed: {}", e);
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": "import failed"})),
+        )
+            .into_response();
     }
 
     let server_updates = match doc.export_updates_since(&client_vv) {

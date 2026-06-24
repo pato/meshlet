@@ -39,21 +39,21 @@ struct DisplayConfig {
 }
 
 fn data_dir() -> Result<PathBuf> {
-    if let Ok(dir) = std::env::var("MESHLET_DATA_DIR") {
-        if !dir.is_empty() {
-            let path = PathBuf::from(dir);
-            std::fs::create_dir_all(&path).context("could not create data directory")?;
-            return Ok(path);
-        }
+    if let Ok(dir) = std::env::var("MESHLET_DATA_DIR")
+        && !dir.is_empty()
+    {
+        let path = PathBuf::from(dir);
+        std::fs::create_dir_all(&path).context("could not create data directory")?;
+        return Ok(path);
     }
 
     let config = load_config();
-    if let Some(ref dir) = config.data_dir {
-        if !dir.is_empty() {
-            let path = PathBuf::from(dir);
-            std::fs::create_dir_all(&path).context("could not create data directory")?;
-            return Ok(path);
-        }
+    if let Some(ref dir) = config.data_dir
+        && !dir.is_empty()
+    {
+        let path = PathBuf::from(dir);
+        std::fs::create_dir_all(&path).context("could not create data directory")?;
+        return Ok(path);
     }
 
     let dir = dirs::data_dir()
@@ -279,11 +279,11 @@ fn cmd_search(
 
 fn cmd_delete(indices: &[usize], range: Option<&[usize]>) -> Result<()> {
     let mut all_indices: Vec<usize> = indices.to_vec();
-    if let Some(r) = range {
-        if r.len() >= 2 {
-            for i in r[0]..=r[1] {
-                all_indices.push(i);
-            }
+    if let Some(r) = range
+        && r.len() >= 2
+    {
+        for i in r[0]..=r[1] {
+            all_indices.push(i);
         }
     }
     all_indices.sort();
