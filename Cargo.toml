@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "crates/meshlet-core",
+    "crates/meshlet-proto",
+    "crates/meshlet-cli",
+    "crates/meshlet-server",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"

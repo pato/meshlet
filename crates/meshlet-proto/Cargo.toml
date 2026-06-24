@@ -1,0 +1,8 @@
+[package]
+name = "meshlet-proto"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+loro = "1"

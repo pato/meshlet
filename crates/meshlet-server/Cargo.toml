@@ -1,0 +1,9 @@
+[package]
+name = "meshlet-server"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+meshlet-core = { path = "../meshlet-core" }
+meshlet-proto = { path = "../meshlet-proto" }
+anyhow = "1"
