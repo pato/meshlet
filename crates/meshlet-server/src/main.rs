@@ -44,17 +44,31 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(AppState {
         doc: Mutex::new(server_doc),
         token: cli.token,
-        data_dir,
+        data_dir: data_dir.clone(),
     });
 
     let app = axum::Router::new()
         .route("/sync", post(sync_handler))
-        .with_state(state);
+        .with_state(state.clone());
 
     let listener = tokio::net::TcpListener::bind(cli.bind).await?;
     tracing::info!("listening on {}", cli.bind);
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal(state, data_dir))
+        .await?;
 
     Ok(())
+}
+
+async fn shutdown_signal(state: Arc<AppState>, data_dir: std::path::PathBuf) {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("failed to install Ctrl+C handler");
+    tracing::info!("shutting down...");
+    let doc = state.doc.lock().await;
+    if let Err(e) = doc.save(&data_dir) {
+        tracing::error!("failed to save state on shutdown: {}", e);
+    }
+    tracing::info!("state saved");
 }

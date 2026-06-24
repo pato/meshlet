@@ -7,6 +7,10 @@ use clap::{Parser, Subcommand};
     version
 )]
 pub struct Cli {
+    /// Data directory (default: ~/.local/share/meshlet)
+    #[arg(long, global = true)]
+    pub data_dir: Option<String>,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -114,6 +118,23 @@ pub enum Commands {
         /// Change description
         #[arg(long)]
         desc: Option<String>,
+
+        /// Mark/unmark title as immutable
+        #[arg(long)]
+        immutable: Option<bool>,
+    },
+
+    /// Manage tags on a bookmark
+    Tag {
+        /// Display index of the bookmark
+        index: usize,
+
+        /// Tags to add (comma-separated)
+        tags: Vec<String>,
+
+        /// Remove the given tags instead of adding
+        #[arg(long, short)]
+        delete: bool,
     },
 
     /// Open bookmark in default browser

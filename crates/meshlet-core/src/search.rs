@@ -9,7 +9,7 @@ pub fn list_all(conn: &Connection) -> Result<Vec<Bookmark>> {
     let mut stmt = conn.prepare(
         "SELECT id, url, title, desc, immutable_title, created_at, updated_at
          FROM bookmarks
-         ORDER BY created_at DESC",
+         ORDER BY created_at ASC",
     )?;
 
     let rows = stmt.query_map([], |row| {
@@ -78,7 +78,7 @@ pub fn search_keywords(
         "SELECT id, url, title, desc, immutable_title, created_at, updated_at
          FROM bookmarks
          WHERE {}
-         ORDER BY created_at DESC",
+         ORDER BY created_at ASC",
         where_clause
     );
 
@@ -129,7 +129,7 @@ pub fn search_by_tags(conn: &Connection, tags: &[String]) -> Result<Vec<Bookmark
         "SELECT id, url, title, desc, immutable_title, created_at, updated_at
          FROM bookmarks
          WHERE id IN (SELECT bookmark_id FROM bookmark_tags WHERE tag IN ({}))
-         ORDER BY created_at DESC",
+         ORDER BY created_at ASC",
         placeholders.join(", ")
     );
 
@@ -178,16 +178,16 @@ pub fn search_regex(
     let sql = match field {
         Some("url") => {
             "SELECT id, url, title, desc, immutable_title, created_at, updated_at
-             FROM bookmarks WHERE regexp(?1, url) ORDER BY created_at DESC"
+             FROM bookmarks WHERE regexp(?1, url) ORDER BY created_at ASC"
         }
         Some("title") => {
             "SELECT id, url, title, desc, immutable_title, created_at, updated_at
-             FROM bookmarks WHERE regexp(?1, title) ORDER BY created_at DESC"
+             FROM bookmarks WHERE regexp(?1, title) ORDER BY created_at ASC"
         }
         _ => {
             "SELECT id, url, title, desc, immutable_title, created_at, updated_at
              FROM bookmarks WHERE regexp(?1, url) OR regexp(?1, title) OR regexp(?1, desc)
-             ORDER BY created_at DESC"
+             ORDER BY created_at ASC"
         }
     };
 

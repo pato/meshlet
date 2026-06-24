@@ -7,6 +7,7 @@ pub mod fetch;
 pub mod reconcile;
 
 pub use rusqlite;
+pub use loro;
 
 use std::path::Path;
 
@@ -38,10 +39,7 @@ impl MeshletDb {
         };
 
         let this = Self { inner, db };
-
-        if this.count_mirror_rows()? == 0 {
-            this.rebuild_mirror()?;
-        }
+        this.rebuild_mirror()?;
 
         Ok(this)
     }
@@ -103,6 +101,7 @@ impl MeshletDb {
 
     pub fn import(&self, data: &[u8]) -> Result<()> {
         self.inner.import(data)?;
+        reconcile::reconcile(&self.inner)?;
         self.rebuild_mirror()?;
         self.save_snapshot()?;
         Ok(())
@@ -178,15 +177,6 @@ impl MeshletDb {
         }
         Ok(())
     }
-
-    fn count_mirror_rows(&self) -> Result<usize> {
-        let count: i64 = self
-            .db
-            .connection()
-            .query_row("SELECT COUNT(*) FROM bookmarks", [], |row| row.get(0))?;
-        Ok(count as usize)
-    }
-
     fn save_snapshot(&self) -> Result<()> {
         let snapshot = self.inner.export_snapshot()?;
         let vv = serde_json::to_vec(&self.inner.oplog_vv())

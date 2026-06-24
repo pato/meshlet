@@ -4,6 +4,7 @@ mod import_export;
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -36,7 +37,13 @@ struct DisplayConfig {
     show_tags: Option<bool>,
 }
 
+static DATA_DIR_OVERRIDE: OnceLock<PathBuf> = OnceLock::new();
+
 fn data_dir() -> Result<PathBuf> {
+    if let Some(dir) = DATA_DIR_OVERRIDE.get() {
+        std::fs::create_dir_all(dir).context("could not create data directory")?;
+        return Ok(dir.clone());
+    }
     let dir = dirs::data_dir()
         .context("could not find data directory")?
         .join("meshlet");
@@ -71,6 +78,11 @@ fn main() -> Result<()> {
     }
 
     let cli = Cli::parse();
+
+    if let Some(ref d) = cli.data_dir {
+        DATA_DIR_OVERRIDE.set(PathBuf::from(d)).ok();
+    }
+
     match cli.command {
         Commands::Add {
             url,
@@ -98,6 +110,7 @@ fn main() -> Result<()> {
             tag_add,
             tag_delete,
             desc,
+            immutable,
         } => cmd_edit(
             index,
             url.as_deref(),
@@ -106,7 +119,9 @@ fn main() -> Result<()> {
             tag_add.as_deref(),
             tag_delete.as_deref(),
             desc.as_deref(),
+            immutable,
         ),
+        Commands::Tag { index, tags, delete } => cmd_tag(index, &tags, delete),
         Commands::Open { index } => cmd_open(index),
         Commands::Import { file } => cmd_import(&file),
         Commands::Export { file, format } => cmd_export(&file, &format),
@@ -279,7 +294,7 @@ fn cmd_delete(indices: &[usize], range: Option<&[usize]>) -> Result<()> {
             );
             continue;
         }
-        let bookmark = &bookmarks[bookmarks.len() - idx];
+        let bookmark = &bookmarks[idx - 1];
         db.delete_bookmark(&bookmark.id)?;
         println!(
             "Deleted: {} — {}",
@@ -290,6 +305,7 @@ fn cmd_delete(indices: &[usize], range: Option<&[usize]>) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn cmd_edit(
     index: usize,
     url: Option<&str>,
@@ -298,6 +314,7 @@ fn cmd_edit(
     tag_add: Option<&str>,
     tag_delete: Option<&str>,
     desc: Option<&str>,
+    immutable: Option<bool>,
 ) -> Result<()> {
     let db = MeshletDb::open(&db_path()?)?;
     let bookmarks = db.list_from_mirror()?;
@@ -310,13 +327,15 @@ fn cmd_edit(
         );
     }
 
-    let bookmark = &bookmarks[bookmarks.len() - index];
+    let bookmark = &bookmarks[index - 1];
+
+    let flags = immutable.map(|im| if im { 0x01 } else { 0 });
 
     let patch = BookmarkPatch {
         url: url.map(String::from),
         title: title.map(String::from),
         desc: desc.map(String::from),
-        flags: None,
+        flags,
     };
 
     if patch.url.is_some() || patch.title.is_some() || patch.desc.is_some() {
@@ -344,6 +363,32 @@ fn cmd_edit(
     }
 
     println!("Updated bookmark at index {}", index);
+    Ok(())
+}
+
+fn cmd_tag(index: usize, tags: &[String], delete: bool) -> Result<()> {
+    let db = MeshletDb::open(&db_path()?)?;
+    let bookmarks = db.list_from_mirror()?;
+
+    if index < 1 || index > bookmarks.len() {
+        anyhow::bail!(
+            "index {} out of range (have {} bookmarks)",
+            index,
+            bookmarks.len()
+        );
+    }
+
+    let bookmark = &bookmarks[index - 1];
+    let all_tags: Vec<String> = tags.iter().flat_map(|t| parse_tags(t)).collect();
+
+    if delete {
+        db.remove_tags(&bookmark.id, &all_tags)?;
+        println!("Removed tags from '{}'", bookmark.title.green());
+    } else {
+        db.add_tags(&bookmark.id, &all_tags)?;
+        println!("Added tags to '{}'", bookmark.title.green());
+    }
+
     Ok(())
 }
 
@@ -515,9 +560,8 @@ fn display_bookmarks(bookmarks: &[Bookmark], config: &DisplayConfig) {
     let show_desc = config.show_desc.unwrap_or(true);
     let show_tags = config.show_tags.unwrap_or(true);
 
-    let total = bookmarks.len();
     for (i, bm) in bookmarks.iter().enumerate() {
-        let idx = total - i;
+        let idx = i + 1;
         let tag_str = if show_tags && !bm.tags.is_empty() {
             format!(
                 " [{}]",

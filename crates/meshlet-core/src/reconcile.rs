@@ -66,10 +66,10 @@ pub fn reconcile(store: &LoroStore) -> Result<usize> {
 }
 
 fn normalize_url(raw: &str) -> String {
-    let normalized = raw.trim().to_lowercase();
+    let normalized = raw.trim();
 
-    if let Ok(mut parsed) = Url::parse(&normalized) {
-        if let Some(host) = parsed.host_str().map(|h| h.to_string()) {
+    if let Ok(mut parsed) = Url::parse(normalized) {
+        if let Some(host) = parsed.host_str().map(|h| h.to_lowercase()) {
             let stripped = host.strip_prefix("www.").unwrap_or(&host);
             if stripped != host {
                 let _ = parsed.set_host(Some(stripped));
@@ -106,8 +106,8 @@ fn normalize_url(raw: &str) -> String {
             url_str.pop();
         }
         url_str
-    } else {
-        normalized
+} else {
+        normalized.to_string()
     }
 }
 
@@ -146,8 +146,9 @@ mod tests {
     #[test]
     fn test_normalize_url_case() {
         let a = normalize_url("HTTPS://EXAMPLE.COM/Path");
-        let b = normalize_url("https://example.com/path");
+        let b = normalize_url("https://example.com/Path");
         assert_eq!(a, b);
+        assert!(a.contains("/Path"));
     }
 
     #[test]
