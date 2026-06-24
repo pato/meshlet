@@ -44,6 +44,10 @@ pub enum Commands {
         /// Filter by tag
         #[arg(long)]
         tag: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Search bookmarks
@@ -66,12 +70,20 @@ pub enum Commands {
         /// Filter by tags
         #[arg(long)]
         tag: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
     },
 
     /// Delete bookmarks by index
     Delete {
         /// One or more display indices to delete
         indices: Vec<usize>,
+
+        /// Delete a range of indices (e.g. --range 1 5)
+        #[arg(long, num_args = 2)]
+        range: Option<Vec<usize>>,
     },
 
     /// Edit a bookmark
@@ -135,8 +147,23 @@ pub enum Commands {
         /// Bearer token for authentication
         #[arg(long)]
         token: Option<String>,
+
+        /// Show sync status (last sync time, pending changes)
+        #[arg(long)]
+        status: bool,
     },
 
     /// Compact the CRDT change store to free space
     Gc,
+
+    /// Show or set configuration
+    Config {
+        /// Set server URL
+        #[arg(long)]
+        server: Option<String>,
+
+        /// Set auth token
+        #[arg(long)]
+        token: Option<String>,
+    },
 }

@@ -10,10 +10,11 @@ use clap::Parser;
 use colored::Colorize;
 use meshlet_core::model::{Bookmark, BookmarkId, BookmarkPatch};
 use meshlet_core::MeshletDb;
+use serde::{Deserialize, Serialize};
 
 use args::{Cli, Commands};
 
-#[derive(Debug, Default, serde::Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 struct Config {
     #[serde(default)]
     server: ServerConfig,
@@ -21,13 +22,13 @@ struct Config {
     display: DisplayConfig,
 }
 
-#[derive(Debug, Default, serde::Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 struct ServerConfig {
     url: Option<String>,
     token: Option<String>,
 }
 
-#[derive(Debug, Default, serde::Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 struct DisplayConfig {
     color: Option<bool>,
     show_url: Option<bool>,
@@ -79,15 +80,16 @@ fn main() -> Result<()> {
             no_fetch,
             immutable,
         } => cmd_add(url.as_deref(), title.as_deref(), tag.as_deref(), desc.as_deref(), no_fetch, immutable),
-        Commands::List { tag } => cmd_list(tag.as_deref()),
+        Commands::List { tag, json } => cmd_list(tag.as_deref(), json),
         Commands::Search {
             keywords,
             deep,
             regex,
             all,
             tag,
-        } => cmd_search(&keywords, deep, regex, all, tag.as_deref()),
-        Commands::Delete { indices } => cmd_delete(&indices),
+            json,
+        } => cmd_search(&keywords, deep, regex, all, tag.as_deref(), json),
+        Commands::Delete { indices, range } => cmd_delete(&indices, range.as_deref()),
         Commands::Edit {
             index,
             url,
@@ -108,8 +110,15 @@ fn main() -> Result<()> {
         Commands::Open { index } => cmd_open(index),
         Commands::Import { file } => cmd_import(&file),
         Commands::Export { file, format } => cmd_export(&file, &format),
-        Commands::Sync { server, token } => cmd_sync(server.as_deref(), token.as_deref()),
+        Commands::Sync { server, token, status } => {
+            if status {
+                cmd_sync_status()
+            } else {
+                cmd_sync(server.as_deref(), token.as_deref())
+            }
+        }
         Commands::Gc => cmd_gc(),
+        Commands::Config { server, token } => cmd_config(server.as_deref(), token.as_deref()),
     }
 }
 
@@ -182,7 +191,7 @@ fn cmd_add(
     Ok(())
 }
 
-fn cmd_list(tag: Option<&str>) -> Result<()> {
+fn cmd_list(tag: Option<&str>, json: bool) -> Result<()> {
     let config = load_config();
     let db = MeshletDb::open(&db_path()?)?;
     let bookmarks = if let Some(tags) = tag {
@@ -192,7 +201,14 @@ fn cmd_list(tag: Option<&str>) -> Result<()> {
         db.list_from_mirror()?
     };
 
-    display_bookmarks(&bookmarks, &config.display);
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&bookmarks)?
+        );
+    } else {
+        display_bookmarks(&bookmarks, &config.display);
+    }
     Ok(())
 }
 
@@ -202,6 +218,7 @@ fn cmd_search(
     regex: bool,
     all_match: bool,
     tag: Option<&str>,
+    json: bool,
 ) -> Result<()> {
     let config = load_config();
     let db = MeshletDb::open(&db_path()?)?;
@@ -229,15 +246,30 @@ fn cmd_search(
         return Ok(());
     }
 
-    display_bookmarks(&bookmarks, &config.display);
+    if json {
+        println!("{}", serde_json::to_string_pretty(&bookmarks)?);
+    } else {
+        display_bookmarks(&bookmarks, &config.display);
+    }
     Ok(())
 }
 
-fn cmd_delete(indices: &[usize]) -> Result<()> {
+fn cmd_delete(indices: &[usize], range: Option<&[usize]>) -> Result<()> {
+    let mut all_indices: Vec<usize> = indices.to_vec();
+    if let Some(r) = range {
+        if r.len() >= 2 {
+            for i in r[0]..=r[1] {
+                all_indices.push(i);
+            }
+        }
+    }
+    all_indices.sort();
+    all_indices.dedup();
+
     let db = MeshletDb::open(&db_path()?)?;
     let bookmarks = db.list_from_mirror()?;
 
-    for &idx in indices {
+    for &idx in &all_indices {
         if idx < 1 || idx > bookmarks.len() {
             eprintln!(
                 "{}: index {} out of range (have {} bookmarks)",
@@ -381,7 +413,7 @@ fn cmd_sync(server: Option<&str>, token: Option<&str>) -> Result<()> {
     let client_updates = if let Some(ref vv) = last_vv {
         db.export_updates_since(vv)?
     } else {
-        db.export_snapshot()?
+        db.export_updates_since(&loro::VersionVector::default())?
     };
 
     let client_vv = db.oplog_vv();
@@ -409,7 +441,7 @@ fn cmd_sync(server: Option<&str>, token: Option<&str>) -> Result<()> {
 
     let sync_response: SyncResponse = response.json().context("invalid server response")?;
 
-    let server_updates = sync_response.updates();
+    let server_updates = sync_response.updates().context("invalid base64 in server response")?;
     let server_vv = sync_response.server_vv().context("invalid server VV")?;
 
     if !server_updates.is_empty() {
@@ -427,6 +459,46 @@ fn cmd_sync(server: Option<&str>, token: Option<&str>) -> Result<()> {
     }
 
     db.save_last_server_vv(&server_vv)?;
+
+    Ok(())
+}
+
+fn cmd_sync_status() -> Result<()> {
+    let db = MeshletDb::open(&db_path()?)?;
+    match db.load_last_server_vv()? {
+        Some(_vv) => {
+            let count = db.list_from_mirror()?.len();
+            println!("Last sync state loaded — {} bookmarks in local database", count);
+        }
+        None => {
+            println!("Not yet synced with a server.");
+        }
+    }
+    Ok(())
+}
+
+fn cmd_config(server: Option<&str>, token: Option<&str>) -> Result<()> {
+    let config_path = config_dir()?.join("config.toml");
+
+    let mut config = load_config();
+
+    if let Some(s) = server {
+        config.server.url = Some(s.to_string());
+    }
+    if let Some(t) = token {
+        config.server.token = Some(t.to_string());
+    }
+
+    if server.is_none() && token.is_none() {
+        println!("Config file: {:?}", config_path);
+        println!("Server URL: {}", config.server.url.as_deref().unwrap_or("(not set)"));
+        println!("Token: {}", if config.server.token.is_some() { "(set)" } else { "(not set)" });
+        return Ok(());
+    }
+
+    let content = toml::to_string_pretty(&config).context("failed to serialize config")?;
+    std::fs::write(&config_path, content).context("failed to write config file")?;
+    println!("Config written to {:?}", config_path);
 
     Ok(())
 }

@@ -39,6 +39,7 @@ impl LoroStore {
     pub fn from_snapshot(data: &[u8]) -> Result<Self> {
         let doc =
             LoroDoc::from_snapshot(data).map_err(MeshletError::LoroError)?;
+        doc.set_record_timestamp(true);
         Ok(Self { doc })
     }
 
@@ -84,7 +85,7 @@ impl LoroStore {
         child.insert(FIELD_URL, b.url.as_str())?;
         child.insert(FIELD_TITLE, b.title.as_str())?;
         child.insert(FIELD_DESC, b.desc.as_str())?;
-        child.insert(FIELD_IMMUTABLE, false)?;
+        child.insert(FIELD_IMMUTABLE, b.flags & 0x01 != 0)?;
         child.insert(FIELD_CREATED_AT, created)?;
         child.insert(FIELD_UPDATED_AT, now)?;
 
@@ -141,6 +142,7 @@ impl LoroStore {
             tags_map.insert(tag.as_str(), true)?;
         }
 
+        child.insert(FIELD_UPDATED_AT, crate::model::now_ts())?;
         self.doc.commit();
         Ok(())
     }
@@ -157,6 +159,7 @@ impl LoroStore {
             tags_map.delete(tag.as_str())?;
         }
 
+        child.insert(FIELD_UPDATED_AT, crate::model::now_ts())?;
         self.doc.commit();
         Ok(())
     }

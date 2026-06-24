@@ -40,7 +40,17 @@ pub async fn sync_handler(
 
     let doc = state.doc.lock().await;
 
-    let client_updates = SyncRequest::updates(&request);
+    let client_updates = match SyncRequest::updates(&request) {
+        Ok(u) => u,
+        Err(e) => {
+            tracing::error!("base64 decode failed: {}", e);
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": "invalid base64 encoding"})),
+            )
+                .into_response();
+        }
+    };
     let client_vv = match SyncRequest::client_vv(&request) {
         Some(vv) => vv,
         None => {

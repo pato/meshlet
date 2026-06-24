@@ -1,7 +1,9 @@
 use std::collections::BTreeSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct BookmarkId(pub String);
 
 impl BookmarkId {
@@ -45,7 +47,7 @@ pub fn now_ts() -> i64 {
         .as_secs() as i64
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Bookmark {
     pub id: BookmarkId,
     pub url: String,

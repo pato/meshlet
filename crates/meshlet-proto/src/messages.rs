@@ -21,10 +21,8 @@ impl SyncRequest {
         }
     }
 
-    pub fn updates(&self) -> Vec<u8> {
-        base64::engine::general_purpose::STANDARD
-            .decode(&self.updates_base64)
-            .unwrap_or_default()
+    pub fn updates(&self) -> Result<Vec<u8>, base64::DecodeError> {
+        base64::engine::general_purpose::STANDARD.decode(&self.updates_base64)
     }
 
     pub fn client_vv(&self) -> Option<loro::VersionVector> {
@@ -40,10 +38,8 @@ impl SyncResponse {
         }
     }
 
-    pub fn updates(&self) -> Vec<u8> {
-        base64::engine::general_purpose::STANDARD
-            .decode(&self.updates_base64)
-            .unwrap_or_default()
+    pub fn updates(&self) -> Result<Vec<u8>, base64::DecodeError> {
+        base64::engine::general_purpose::STANDARD.decode(&self.updates_base64)
     }
 
     pub fn server_vv(&self) -> Option<loro::VersionVector> {

@@ -1530,6 +1530,7 @@ dependencies = [
  "clap",
  "colored",
  "dirs",
+ "loro",
  "meshlet-core",
  "meshlet-proto",
  "reqwest",

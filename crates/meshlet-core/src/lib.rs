@@ -32,6 +32,8 @@ impl MeshletDb {
         let inner = if let Some(snapshot) = db.load_snapshot()? {
             doc::LoroStore::from_snapshot(&snapshot)?
         } else {
+            let peer_id = ulid::Ulid::new().to_string();
+            db.set_meta_string("peer_id", &peer_id)?;
             doc::LoroStore::new()
         };
 
@@ -141,11 +143,8 @@ impl MeshletDb {
 
     pub fn sync_import(&self, data: &[u8]) -> Result<SyncSummary> {
         self.inner.import(data)?;
-        self.rebuild_mirror()?;
         let merged = reconcile::reconcile(&self.inner)?;
-        if merged > 0 {
-            self.rebuild_mirror()?;
-        }
+        self.rebuild_mirror()?;
         self.save_snapshot()?;
         Ok(SyncSummary {
             merged_duplicates: merged,
@@ -171,6 +170,8 @@ impl MeshletDb {
     }
 
     fn rebuild_mirror(&self) -> Result<()> {
+        self.db.connection().execute("DELETE FROM bookmark_tags", [])?;
+        self.db.connection().execute("DELETE FROM bookmarks", [])?;
         let bookmarks = self.inner.list_bookmarks();
         for b in &bookmarks {
             self.db.upsert_bookmark(b)?;
@@ -186,7 +187,7 @@ impl MeshletDb {
         Ok(count as usize)
     }
 
-fn save_snapshot(&self) -> Result<()> {
+    fn save_snapshot(&self) -> Result<()> {
         let snapshot = self.inner.export_snapshot()?;
         let vv = serde_json::to_vec(&self.inner.oplog_vv())
             .map_err(|e| error::MeshletError::SerializationError(e.to_string()))?;

@@ -127,6 +127,17 @@ impl Store {
         Ok(result)
     }
 
+    pub fn set_meta_string(&self, key: &str, value: &str) -> Result<()> {
+        self.set_meta(key, value.as_bytes())
+    }
+
+    pub fn get_meta_string(&self, key: &str) -> Result<Option<String>> {
+        match self.get_meta(key)? {
+            Some(data) => Ok(String::from_utf8(data).ok()),
+            None => Ok(None),
+        }
+    }
+
     pub fn upsert_bookmark(&self, b: &crate::model::Bookmark) -> Result<()> {
         self.conn.execute(
             "INSERT INTO bookmarks (id, url, title, desc, immutable_title, created_at, updated_at)

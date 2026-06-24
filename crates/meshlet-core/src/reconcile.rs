@@ -57,7 +57,7 @@ pub fn reconcile(store: &LoroStore) -> Result<usize> {
                 let _ = store.add_tags(&winner.id, &new_tags);
             }
 
-            let _ = store.delete_bookmark(&loser.id);
+            store.delete_bookmark(&loser.id)?;
             merged += 1;
         }
     }
