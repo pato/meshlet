@@ -103,4 +103,26 @@ pub enum Commands {
         #[arg(long)]
         desc: Option<String>,
     },
+
+    /// Open bookmark in default browser
+    Open {
+        /// Display index of the bookmark to open
+        index: usize,
+    },
+
+    /// Import bookmarks from file (Netscape/Firefox HTML format)
+    Import {
+        /// Path to the import file
+        file: String,
+    },
+
+    /// Export bookmarks to file
+    Export {
+        /// Path to the export file
+        file: String,
+
+        /// Export format: html or md
+        #[arg(long, default_value = "md")]
+        format: String,
+    },
 }

@@ -1,4 +1,6 @@
 mod args;
+mod editor;
+mod import_export;
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -60,6 +62,9 @@ fn main() -> Result<()> {
             tag_delete.as_deref(),
             desc.as_deref(),
         ),
+        Commands::Open { index } => cmd_open(index),
+        Commands::Import { file } => cmd_import(&file),
+        Commands::Export { file, format } => cmd_export(&file, &format),
     }
 }
 
@@ -242,6 +247,56 @@ fn cmd_edit(
     }
 
     println!("Updated bookmark at index {}", index);
+    Ok(())
+}
+
+fn cmd_open(index: usize) -> Result<()> {
+    let db = MeshletDb::open(&db_path()?)?;
+    let bookmarks = db.list_from_mirror()?;
+
+    if index < 1 || index > bookmarks.len() {
+        anyhow::bail!(
+            "index {} out of range (have {} bookmarks)",
+            index,
+            bookmarks.len()
+        );
+    }
+
+    let bookmark = &bookmarks[bookmarks.len() - index];
+    webbrowser::open(&bookmark.url).context("failed to open browser")?;
+    println!("Opening: {}", bookmark.url.cyan());
+
+    Ok(())
+}
+
+fn cmd_import(file: &str) -> Result<()> {
+    let db = MeshletDb::open(&db_path()?)?;
+    let path = std::path::Path::new(file);
+
+    if !path.exists() {
+        anyhow::bail!("file not found: {}", file);
+    }
+
+    let stats = import_export::import_netscape(path, &db)?;
+    println!(
+        "Imported {} bookmarks ({} skipped, {} total)",
+        stats.imported, stats.skipped, stats.total
+    );
+
+    Ok(())
+}
+
+fn cmd_export(file: &str, format: &str) -> Result<()> {
+    let db = MeshletDb::open(&db_path()?)?;
+    let path = std::path::Path::new(file);
+
+    match format.to_lowercase().as_str() {
+        "html" => import_export::export_html(path, &db)?,
+        "md" | "markdown" => import_export::export_markdown(path, &db)?,
+        other => anyhow::bail!("unknown export format: {} (use 'html' or 'md')", other),
+    }
+
+    println!("Exported to {}", file);
     Ok(())
 }
 

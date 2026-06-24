@@ -10,3 +10,11 @@ anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 colored = "2"
 dirs = "5"
+tempfile = "3"
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+webbrowser = "1"
+scraper = "0.20"
+
+[dev-dependencies]
+tempfile = "3"
