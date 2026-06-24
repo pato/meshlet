@@ -4,7 +4,8 @@ use std::sync::Arc;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
+use axum::routing::post;
+use axum::{Json, Router};
 use meshlet_proto::messages::{SyncRequest, SyncResponse};
 use tokio::sync::Mutex;
 
@@ -14,6 +15,12 @@ pub struct AppState {
     pub doc: Mutex<ServerDoc>,
     pub token: Option<String>,
     pub data_dir: PathBuf,
+}
+
+pub fn app_router(state: Arc<AppState>) -> Router {
+    Router::new()
+        .route("/sync", post(sync_handler))
+        .with_state(state)
 }
 
 pub async fn sync_handler(
