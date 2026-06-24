@@ -1,12 +1,18 @@
 # meshlet
 
+> [!WARNING]  
+> This is mostly vibe coded (there was guidance and architecture, but not
+> proper AI engineering) and intended to be used solely for my specific use
+> case, so proceed at your own risk if you wish to use/run this.
+
 A bookmark manager for the command line. Stores bookmarks locally in SQLite, auto-fetches titles and descriptions from the web, and syncs between machines through a self-hosted server using CRDTs (so offline edits never conflict).
 
 Inspired by [buku](https://github.com/jarun/buku), with first-class multi-device sync.
 
+
 ## Build
 
-Requires Rust 1.74+ (uses the 2021 edition).
+Requires Rust 1.74+.
 
 ```sh
 cargo build --release
@@ -14,8 +20,6 @@ cargo build --release
 #   target/release/meshlet-cli
 #   target/release/meshlet-server
 ```
-
-You'll probably want to symlink or copy `meshlet-cli` to `meshlet` somewhere on your `$PATH`.
 
 ## Quick start
 
@@ -134,9 +138,3 @@ show_tags = true
 ```
 
 Data lives in `~/.local/share/meshlet/bookmarks.db` (or platform equivalent). To use a different location, either set `data_dir` in the config file (`meshlet config --data-dir /path`) or export the `MESHLET_DATA_DIR` environment variable. The env var takes precedence over the config file, which takes precedence over the default.
-
-## Status
-
-This is v1: stable local-only use, optional sync. Things not built yet (and not planned for v1): browser extension, full-text indexing of page contents, end-to-end encryption of the sync payload, multi-user sharing.
-
-See `PLAN.md` for the full architecture and design notes.
