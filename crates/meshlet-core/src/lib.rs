@@ -4,11 +4,13 @@ pub mod doc;
 pub mod store;
 pub mod search;
 pub mod fetch;
+pub mod reconcile;
 
 pub use rusqlite;
 
 use std::path::Path;
 
+use crate::error::MeshletError;
 use error::Result;
 use model::{Bookmark, BookmarkId, BookmarkPatch};
 use store::Store;
@@ -122,6 +124,39 @@ impl MeshletDb {
 
     pub fn inner_connection(&self) -> &rusqlite::Connection {
         self.db.connection()
+    }
+
+    pub fn oplog_vv(&self) -> loro::VersionVector {
+        self.inner.oplog_vv()
+    }
+
+    pub fn export_updates_since(&self, vv: &loro::VersionVector) -> Result<Vec<u8>> {
+        self.inner.export_updates_since(vv)
+    }
+
+    pub fn sync_import(&self, data: &[u8]) -> Result<usize> {
+        self.inner.import(data)?;
+        self.rebuild_mirror()?;
+        let merged = reconcile::reconcile(&self.inner)?;
+        if merged > 0 {
+            self.rebuild_mirror()?;
+        }
+        self.save_snapshot()?;
+        Ok(merged)
+    }
+
+    pub fn save_last_server_vv(&self, vv: &loro::VersionVector) -> Result<()> {
+        let data = serde_json::to_vec(vv)
+            .map_err(|e| MeshletError::SerializationError(e.to_string()))?;
+        self.db.set_meta("last_server_vv", &data)
+    }
+
+    pub fn load_last_server_vv(&self) -> Result<Option<loro::VersionVector>> {
+        match self.db.get_meta("last_server_vv")? {
+            Some(data) => Ok(Some(serde_json::from_slice(&data)
+                .map_err(|e| MeshletError::SerializationError(e.to_string()))?)),
+            None => Ok(None),
+        }
     }
 
     fn rebuild_mirror(&self) -> Result<()> {

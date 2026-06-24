@@ -125,4 +125,15 @@ pub enum Commands {
         #[arg(long, default_value = "md")]
         format: String,
     },
+
+    /// Sync bookmarks with a meshlet server
+    Sync {
+        /// Server URL (e.g. https://sync.example.com)
+        #[arg(long)]
+        server: String,
+
+        /// Bearer token for authentication
+        #[arg(long)]
+        token: Option<String>,
+    },
 }

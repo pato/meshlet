@@ -65,6 +65,7 @@ fn main() -> Result<()> {
         Commands::Open { index } => cmd_open(index),
         Commands::Import { file } => cmd_import(&file),
         Commands::Export { file, format } => cmd_export(&file, &format),
+        Commands::Sync { server, token } => cmd_sync(&server, token.as_deref()),
     }
 }
 
@@ -297,6 +298,59 @@ fn cmd_export(file: &str, format: &str) -> Result<()> {
     }
 
     println!("Exported to {}", file);
+    Ok(())
+}
+
+fn cmd_sync(server: &str, token: Option<&str>) -> Result<()> {
+    use meshlet_proto::messages::{SyncRequest, SyncResponse};
+
+    let db = MeshletDb::open(&db_path()?)?;
+
+    let last_vv = db.load_last_server_vv()?;
+
+    let client_updates = if let Some(ref vv) = last_vv {
+        db.export_updates_since(vv)?
+    } else {
+        db.export_snapshot()?
+    };
+
+    let client_vv = db.oplog_vv();
+    let request = SyncRequest::new(&client_vv, &client_updates);
+
+    let client = reqwest::blocking::Client::new();
+    let mut builder = client
+        .post(format!("{}/sync", server.trim_end_matches('/')))
+        .json(&request);
+
+    if let Some(t) = token {
+        builder = builder.header("Authorization", format!("Bearer {}", t));
+    }
+
+    let response = builder
+        .send()
+        .context("failed to connect to sync server")?;
+
+    if !response.status().is_success() {
+        anyhow::bail!(
+            "sync server returned {} — check your server URL and token",
+            response.status()
+        );
+    }
+
+    let sync_response: SyncResponse = response.json().context("invalid server response")?;
+
+    let server_updates = sync_response.updates();
+    let server_vv = sync_response.server_vv().context("invalid server VV")?;
+
+    if !server_updates.is_empty() {
+        let merged = db.sync_import(&server_updates)?;
+        println!("Synced {} new/updated bookmarks from server", merged);
+    } else {
+        println!("Already up to date.");
+    }
+
+    db.save_last_server_vv(&server_vv)?;
+
     Ok(())
 }
 
