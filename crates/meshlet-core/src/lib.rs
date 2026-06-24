@@ -5,6 +5,8 @@ pub mod store;
 pub mod search;
 pub mod fetch;
 
+pub use rusqlite;
+
 use std::path::Path;
 
 use error::Result;
@@ -116,6 +118,10 @@ impl MeshletDb {
 
     pub fn list_from_mirror(&self) -> Result<Vec<Bookmark>> {
         search::list_all(self.db.connection())
+    }
+
+    pub fn inner_connection(&self) -> &rusqlite::Connection {
+        self.db.connection()
     }
 
     fn rebuild_mirror(&self) -> Result<()> {
