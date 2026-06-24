@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BookmarkId(pub String);
@@ -35,6 +36,13 @@ impl From<&str> for BookmarkId {
     fn from(s: &str) -> Self {
         Self(s.to_string())
     }
+}
+
+pub fn now_ts() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

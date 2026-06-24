@@ -3,7 +3,6 @@ use std::process::Command;
 
 use anyhow::{Context, Result};
 
-#[allow(dead_code)]
 const EDITOR_TEMPLATE: &str = r##"# Lines beginning with # are comments
 # Enter your bookmark details and save + exit to continue.
 # Line 1: URL
@@ -13,7 +12,6 @@ const EDITOR_TEMPLATE: &str = r##"# Lines beginning with # are comments
 #
 "##;
 
-#[allow(dead_code)]
 pub struct EditorData {
     pub url: String,
     pub title: String,
@@ -21,7 +19,6 @@ pub struct EditorData {
     pub desc: String,
 }
 
-#[allow(dead_code)]
 pub fn open_editor(initial_url: Option<&str>) -> Result<Option<EditorData>> {
     let mut tempfile = tempfile::Builder::new()
         .prefix("meshlet-")

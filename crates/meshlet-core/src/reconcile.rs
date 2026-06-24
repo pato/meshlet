@@ -69,8 +69,39 @@ fn normalize_url(raw: &str) -> String {
     let normalized = raw.trim().to_lowercase();
 
     if let Ok(mut parsed) = Url::parse(&normalized) {
+        if let Some(host) = parsed.host_str().map(|h| h.to_string()) {
+            let stripped = host.strip_prefix("www.").unwrap_or(&host);
+            if stripped != host {
+                let _ = parsed.set_host(Some(stripped));
+            }
+        }
+
         parsed.set_fragment(None);
+
+        let tracking_params: &[&str] = &[
+            "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+            "fbclid", "gclid", "gclsrc", "dclid", "msclkid", "ref", "source",
+        ];
+
+        if let Some(query) = parsed.query() {
+            let filtered: Vec<&str> = query
+                .split('&')
+                .filter(|pair| {
+                    let key = pair.split('=').next().unwrap_or("");
+                    let lower = key.to_lowercase();
+                    !tracking_params.contains(&lower.as_str())
+                })
+                .collect();
+
+            if filtered.is_empty() {
+                parsed.set_query(None);
+            } else {
+                parsed.set_query(Some(&filtered.join("&")));
+            }
+        }
+
         let mut url_str = parsed.to_string();
+        url_str = url_str.replace("/?", "?");
         if url_str.ends_with('/') {
             url_str.pop();
         }
@@ -154,6 +185,26 @@ mod tests {
         assert!(remaining[0].tags.contains("b"));
         assert!(remaining[0].tags.contains("c"));
         assert_eq!(remaining[0].url, "https://example.com/");
+    }
+
+    #[test]
+    fn test_normalize_url_strips_www() {
+        assert_eq!(
+            normalize_url("https://www.example.com/page"),
+            "https://example.com/page"
+        );
+    }
+
+    #[test]
+    fn test_normalize_url_strips_utm() {
+        let result = normalize_url("https://example.com?utm_source=twitter&keep=1&utm_medium=social");
+        assert_eq!(result, "https://example.com?keep=1");
+    }
+
+    #[test]
+    fn test_normalize_url_strips_all_tracking() {
+        let result = normalize_url("https://example.com?a=1&utm_source=x&gclid=y&fbclid=z&b=2");
+        assert_eq!(result, "https://example.com?a=1&b=2");
     }
 
     #[test]

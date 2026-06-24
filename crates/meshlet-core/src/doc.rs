@@ -12,6 +12,8 @@ const FIELD_URL: &str = "url";
 const FIELD_TITLE: &str = "title";
 const FIELD_DESC: &str = "desc";
 const FIELD_IMMUTABLE: &str = "immutable_title";
+const FIELD_CREATED_AT: &str = "created_at";
+const FIELD_UPDATED_AT: &str = "updated_at";
 
 pub struct LoroStore {
     doc: LoroDoc,
@@ -76,10 +78,15 @@ impl LoroStore {
         let bookmarks = self.bookmarks_map()?;
         let child = bookmarks.ensure_mergeable_map(b.id.as_str())?;
 
+        let now = crate::model::now_ts();
+        let created = if b.created_at > 0 { b.created_at } else { now };
+
         child.insert(FIELD_URL, b.url.as_str())?;
         child.insert(FIELD_TITLE, b.title.as_str())?;
         child.insert(FIELD_DESC, b.desc.as_str())?;
         child.insert(FIELD_IMMUTABLE, false)?;
+        child.insert(FIELD_CREATED_AT, created)?;
+        child.insert(FIELD_UPDATED_AT, now)?;
 
         let tags_map = child.ensure_mergeable_map(TAGS)?;
         for tag in &b.tags {
@@ -108,6 +115,8 @@ impl LoroStore {
         if let Some(flags) = patch.flags {
             child.insert(FIELD_IMMUTABLE, flags & 0x01 != 0)?;
         }
+
+        child.insert(FIELD_UPDATED_AT, crate::model::now_ts())?;
 
         self.doc.commit();
         Ok(())
@@ -170,6 +179,10 @@ impl LoroStore {
         results
     }
 
+    pub fn compact_change_store(&self) {
+        self.doc.compact_change_store();
+    }
+
     fn bookmarks_map(&self) -> Result<LoroMap> {
         Ok(self.doc.get_map(BOOKMARKS))
     }
@@ -190,6 +203,8 @@ impl LoroStore {
         let desc = read_string_field(child, FIELD_DESC).unwrap_or_default();
         let immutable = read_bool_field(child, FIELD_IMMUTABLE).unwrap_or(false);
         let flags: i64 = if immutable { 0x01 } else { 0 };
+        let created_at = read_i64_field(child, FIELD_CREATED_AT).unwrap_or(0);
+        let updated_at = read_i64_field(child, FIELD_UPDATED_AT).unwrap_or(0);
 
         let tags: BTreeSet<String> = {
             let mut set = BTreeSet::new();
@@ -212,8 +227,8 @@ impl LoroStore {
             desc,
             tags,
             flags,
-            created_at: 0,
-            updated_at: 0,
+            created_at,
+            updated_at,
         }
     }
 }
@@ -228,6 +243,13 @@ fn read_string_field(map: &LoroMap, key: &str) -> Option<String> {
 fn read_bool_field(map: &LoroMap, key: &str) -> Option<bool> {
     match map.get(key)? {
         ValueOrContainer::Value(LoroValue::Bool(b)) => Some(b),
+        _ => None,
+    }
+}
+
+fn read_i64_field(map: &LoroMap, key: &str) -> Option<i64> {
+    match map.get(key)? {
+        ValueOrContainer::Value(LoroValue::I64(n)) => Some(n),
         _ => None,
     }
 }

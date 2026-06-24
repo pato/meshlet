@@ -13,6 +13,28 @@ use meshlet_core::MeshletDb;
 
 use args::{Cli, Commands};
 
+#[derive(Debug, Default, serde::Deserialize)]
+struct Config {
+    #[serde(default)]
+    server: ServerConfig,
+    #[serde(default)]
+    display: DisplayConfig,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct ServerConfig {
+    url: Option<String>,
+    token: Option<String>,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct DisplayConfig {
+    color: Option<bool>,
+    show_url: Option<bool>,
+    show_desc: Option<bool>,
+    show_tags: Option<bool>,
+}
+
 fn data_dir() -> Result<PathBuf> {
     let dir = dirs::data_dir()
         .context("could not find data directory")?
@@ -21,11 +43,32 @@ fn data_dir() -> Result<PathBuf> {
     Ok(dir)
 }
 
+fn config_dir() -> Result<PathBuf> {
+    let dir = dirs::config_dir()
+        .context("could not find config directory")?
+        .join("meshlet");
+    std::fs::create_dir_all(&dir).context("could not create config directory")?;
+    Ok(dir)
+}
+
+fn load_config() -> Config {
+    let path = config_dir().ok().map(|d| d.join("config.toml"));
+    match path.and_then(|p| std::fs::read_to_string(p).ok()) {
+        Some(content) => toml::from_str(&content).unwrap_or_default(),
+        None => Config::default(),
+    }
+}
+
 fn db_path() -> Result<PathBuf> {
     Ok(data_dir()?.join("bookmarks.db"))
 }
 
 fn main() -> Result<()> {
+    let config = load_config();
+    if !config.display.color.unwrap_or(true) {
+        colored::control::set_override(false);
+    }
+
     let cli = Cli::parse();
     match cli.command {
         Commands::Add {
@@ -35,7 +78,7 @@ fn main() -> Result<()> {
             desc,
             no_fetch,
             immutable,
-        } => cmd_add(&url, title.as_deref(), tag.as_deref(), desc.as_deref(), no_fetch, immutable),
+        } => cmd_add(url.as_deref(), title.as_deref(), tag.as_deref(), desc.as_deref(), no_fetch, immutable),
         Commands::List { tag } => cmd_list(tag.as_deref()),
         Commands::Search {
             keywords,
@@ -65,38 +108,56 @@ fn main() -> Result<()> {
         Commands::Open { index } => cmd_open(index),
         Commands::Import { file } => cmd_import(&file),
         Commands::Export { file, format } => cmd_export(&file, &format),
-        Commands::Sync { server, token } => cmd_sync(&server, token.as_deref()),
+        Commands::Sync { server, token } => cmd_sync(server.as_deref(), token.as_deref()),
+        Commands::Gc => cmd_gc(),
     }
 }
 
 fn cmd_add(
-    url: &str,
+    url: Option<&str>,
     title: Option<&str>,
     tags: Option<&str>,
     desc: Option<&str>,
     no_fetch: bool,
     immutable: bool,
 ) -> Result<()> {
+    let (url_str, edit_title, edit_tags, edit_desc) = if let Some(u) = url {
+        (u.to_string(), title.map(String::from), tags.map(String::from), desc.map(String::from))
+    } else {
+        match editor::open_editor(None)? {
+            Some(data) => (
+                data.url,
+                if data.title.is_empty() { None } else { Some(data.title) },
+                if data.tags.is_empty() { None } else { Some(data.tags) },
+                if data.desc.is_empty() { None } else { Some(data.desc) },
+            ),
+            None => {
+                eprintln!("Editor closed without saving.");
+                return Ok(());
+            }
+        }
+    };
+
     let db = MeshletDb::open(&db_path()?)?;
 
-    let tag_set = parse_tags(tags.unwrap_or(""));
+    let tag_set = parse_tags(edit_tags.as_deref().unwrap_or(""));
     let mut flags: i64 = 0;
     if immutable {
         flags |= 0x01;
     }
 
     let (fetched_title, fetched_desc, fetched_tags) = if !no_fetch {
-        let result = meshlet_core::fetch::fetch_bookmark_data(url);
+        let result = meshlet_core::fetch::fetch_bookmark_data(&url_str);
         if result.bad {
             eprintln!("{}: could not fetch URL (status {})", "warning".yellow(), result.status);
         }
         (
-            title.map(String::from).or(result.title),
-            desc.map(String::from).or(result.desc),
+            edit_title.or(result.title),
+            edit_desc.or(result.desc),
             result.tags,
         )
     } else {
-        (title.map(String::from), desc.map(String::from), vec![])
+        (edit_title, edit_desc, vec![])
     };
 
     let mut all_tags: BTreeSet<String> = tag_set;
@@ -104,15 +165,16 @@ fn cmd_add(
         all_tags.insert(t);
     }
 
+    let now = meshlet_core::model::now_ts();
     let bookmark = Bookmark {
         id: BookmarkId::new(),
-        url: url.to_string(),
+        url: url_str,
         title: fetched_title.unwrap_or_default(),
         desc: fetched_desc.unwrap_or_default(),
         tags: all_tags,
         flags,
-        created_at: 0,
-        updated_at: 0,
+        created_at: now,
+        updated_at: now,
     };
 
     db.add_bookmark(&bookmark)?;
@@ -121,6 +183,7 @@ fn cmd_add(
 }
 
 fn cmd_list(tag: Option<&str>) -> Result<()> {
+    let config = load_config();
     let db = MeshletDb::open(&db_path()?)?;
     let bookmarks = if let Some(tags) = tag {
         let tag_list: Vec<String> = parse_tags(tags).into_iter().collect();
@@ -129,7 +192,7 @@ fn cmd_list(tag: Option<&str>) -> Result<()> {
         db.list_from_mirror()?
     };
 
-    display_bookmarks(&bookmarks);
+    display_bookmarks(&bookmarks, &config.display);
     Ok(())
 }
 
@@ -140,6 +203,7 @@ fn cmd_search(
     all_match: bool,
     tag: Option<&str>,
 ) -> Result<()> {
+    let config = load_config();
     let db = MeshletDb::open(&db_path()?)?;
 
     let results = if regex && !keywords.is_empty() {
@@ -165,7 +229,7 @@ fn cmd_search(
         return Ok(());
     }
 
-    display_bookmarks(&bookmarks);
+    display_bookmarks(&bookmarks, &config.display);
     Ok(())
 }
 
@@ -301,10 +365,16 @@ fn cmd_export(file: &str, format: &str) -> Result<()> {
     Ok(())
 }
 
-fn cmd_sync(server: &str, token: Option<&str>) -> Result<()> {
+fn cmd_sync(server: Option<&str>, token: Option<&str>) -> Result<()> {
     use meshlet_proto::messages::{SyncRequest, SyncResponse};
 
+    let config = load_config();
     let db = MeshletDb::open(&db_path()?)?;
+
+    let server = server
+        .or(config.server.url.as_deref())
+        .context("no server URL provided (use --server or set in config.toml)")?;
+    let token = token.or(config.server.token.as_deref());
 
     let last_vv = db.load_last_server_vv()?;
 
@@ -343,8 +413,15 @@ fn cmd_sync(server: &str, token: Option<&str>) -> Result<()> {
     let server_vv = sync_response.server_vv().context("invalid server VV")?;
 
     if !server_updates.is_empty() {
-        let merged = db.sync_import(&server_updates)?;
-        println!("Synced {} new/updated bookmarks from server", merged);
+        let summary = db.sync_import(&server_updates)?;
+        if summary.merged_duplicates > 0 {
+            println!(
+                "Synced from server — merged {} duplicate bookmarks",
+                summary.merged_duplicates
+            );
+        } else {
+            println!("Synced from server");
+        }
     } else {
         println!("Already up to date.");
     }
@@ -354,13 +431,22 @@ fn cmd_sync(server: &str, token: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-fn display_bookmarks(bookmarks: &[Bookmark]) {
+fn cmd_gc() -> Result<()> {
+    let db = MeshletDb::open(&db_path()?)?;
+    db.compact_change_store();
+    println!("Garbage collection complete");
+    Ok(())
+}
+
+fn display_bookmarks(bookmarks: &[Bookmark], config: &DisplayConfig) {
+    let show_url = config.show_url.unwrap_or(true);
+    let show_desc = config.show_desc.unwrap_or(true);
+    let show_tags = config.show_tags.unwrap_or(true);
+
     let total = bookmarks.len();
     for (i, bm) in bookmarks.iter().enumerate() {
         let idx = total - i;
-        let tag_str = if bm.tags.is_empty() {
-            String::new()
-        } else {
+        let tag_str = if show_tags && !bm.tags.is_empty() {
             format!(
                 " [{}]",
                 bm.tags
@@ -369,6 +455,8 @@ fn display_bookmarks(bookmarks: &[Bookmark]) {
                     .collect::<Vec<_>>()
                     .join(",")
             )
+        } else {
+            String::new()
         };
 
         println!(
@@ -378,13 +466,13 @@ fn display_bookmarks(bookmarks: &[Bookmark]) {
             tag_str.magenta()
         );
 
-        if !bm.url.is_empty() {
+        if show_url && !bm.url.is_empty() {
             println!("      > {}", bm.url.cyan());
         }
-        if !bm.desc.is_empty() {
+        if show_desc && !bm.desc.is_empty() {
             println!("      + {}", bm.desc.yellow());
         }
-        if !bm.tags.is_empty() {
+        if show_tags && !bm.tags.is_empty() {
             println!(
                 "      # {}",
                 bm.tags

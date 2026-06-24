@@ -15,6 +15,11 @@ use error::Result;
 use model::{Bookmark, BookmarkId, BookmarkPatch};
 use store::Store;
 
+#[derive(Debug, Clone, Default)]
+pub struct SyncSummary {
+    pub merged_duplicates: usize,
+}
+
 pub struct MeshletDb {
     inner: doc::LoroStore,
     db: Store,
@@ -134,7 +139,7 @@ impl MeshletDb {
         self.inner.export_updates_since(vv)
     }
 
-    pub fn sync_import(&self, data: &[u8]) -> Result<usize> {
+    pub fn sync_import(&self, data: &[u8]) -> Result<SyncSummary> {
         self.inner.import(data)?;
         self.rebuild_mirror()?;
         let merged = reconcile::reconcile(&self.inner)?;
@@ -142,7 +147,13 @@ impl MeshletDb {
             self.rebuild_mirror()?;
         }
         self.save_snapshot()?;
-        Ok(merged)
+        Ok(SyncSummary {
+            merged_duplicates: merged,
+        })
+    }
+
+    pub fn compact_change_store(&self) {
+        self.inner.compact_change_store();
     }
 
     pub fn save_last_server_vv(&self, vv: &loro::VersionVector) -> Result<()> {

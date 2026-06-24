@@ -13,10 +13,10 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Add a bookmark
+    /// Add a bookmark (opens editor if no URL)
     Add {
-        /// URL to bookmark
-        url: String,
+        /// URL to bookmark (opens editor if omitted)
+        url: Option<String>,
 
         /// Manual title (skip auto-fetch)
         #[arg(long, short)]
@@ -128,12 +128,15 @@ pub enum Commands {
 
     /// Sync bookmarks with a meshlet server
     Sync {
-        /// Server URL (e.g. https://sync.example.com)
+        /// Server URL (defaults to config file)
         #[arg(long)]
-        server: String,
+        server: Option<String>,
 
         /// Bearer token for authentication
         #[arg(long)]
         token: Option<String>,
     },
+
+    /// Compact the CRDT change store to free space
+    Gc,
 }
