@@ -1556,7 +1556,7 @@ checksum = "88904434abc2901f197fe8cc55f0445e7ded921dba5911dad2e2b39b48e663c4"
 
 [[package]]
 name = "meshlet-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1577,7 +1577,7 @@ dependencies = [
 
 [[package]]
 name = "meshlet-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "loro",
@@ -1595,7 +1595,7 @@ dependencies = [
 
 [[package]]
 name = "meshlet-proto"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64",
  "loro",
@@ -1605,7 +1605,7 @@ dependencies = [
 
 [[package]]
 name = "meshlet-server"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "axum",

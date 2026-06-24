@@ -1,6 +1,7 @@
 [package]
 name = "meshlet-core"
 description = "Core library for meshlet: CRDT bookmark storage, SQLite mirror, and web fetcher"
+readme = "README.md"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
