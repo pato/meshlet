@@ -7,10 +7,6 @@ use clap::{Parser, Subcommand};
     version
 )]
 pub struct Cli {
-    /// Data directory (default: ~/.local/share/meshlet)
-    #[arg(long, global = true)]
-    pub data_dir: Option<String>,
-
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -186,5 +182,9 @@ pub enum Commands {
         /// Set auth token
         #[arg(long)]
         token: Option<String>,
+
+        /// Set data directory for bookmarks database
+        #[arg(long)]
+        data_dir: Option<String>,
     },
 }

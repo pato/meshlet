@@ -1,0 +1,19 @@
+---
+source: crates/meshlet-cli/src/import_export.rs
+expression: content
+---
+# Meshlet Bookmarks
+
+- [Edge case: <script> & friends](https://example.com/special?x=1&y=2)
+  > Quotes " and ampersands &
+
+## lang
+
+- [Rust](https://rust-lang.org)
+  `#lang`
+
+## crdt
+
+- [Loro CRDT](https://loro.dev)
+  > A high-performance CRDT framework
+  `#crdt` `#rust`

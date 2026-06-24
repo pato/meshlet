@@ -1,0 +1,14 @@
+---
+source: crates/meshlet-cli/src/main.rs
+expression: output
+---
+    1. Loro CRDT [crdt,rust]
+      > https://loro.dev
+      + A high-performance CRDT framework
+      # crdt, rust
+    2. Rust [lang]
+      > https://rust-lang.org
+      # lang
+    3. No Tags
+      > https://example.com
+      + Just a URL and description

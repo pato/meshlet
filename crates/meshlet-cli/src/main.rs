@@ -4,7 +4,6 @@ mod import_export;
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
-use std::sync::OnceLock;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -17,6 +16,8 @@ use args::{Cli, Commands};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct Config {
+    #[serde(default)]
+    data_dir: Option<String>,
     #[serde(default)]
     server: ServerConfig,
     #[serde(default)]
@@ -37,13 +38,24 @@ struct DisplayConfig {
     show_tags: Option<bool>,
 }
 
-static DATA_DIR_OVERRIDE: OnceLock<PathBuf> = OnceLock::new();
-
 fn data_dir() -> Result<PathBuf> {
-    if let Some(dir) = DATA_DIR_OVERRIDE.get() {
-        std::fs::create_dir_all(dir).context("could not create data directory")?;
-        return Ok(dir.clone());
+    if let Ok(dir) = std::env::var("MESHLET_DATA_DIR") {
+        if !dir.is_empty() {
+            let path = PathBuf::from(dir);
+            std::fs::create_dir_all(&path).context("could not create data directory")?;
+            return Ok(path);
+        }
     }
+
+    let config = load_config();
+    if let Some(ref dir) = config.data_dir {
+        if !dir.is_empty() {
+            let path = PathBuf::from(dir);
+            std::fs::create_dir_all(&path).context("could not create data directory")?;
+            return Ok(path);
+        }
+    }
+
     let dir = dirs::data_dir()
         .context("could not find data directory")?
         .join("meshlet");
@@ -78,10 +90,6 @@ fn main() -> Result<()> {
     }
 
     let cli = Cli::parse();
-
-    if let Some(ref d) = cli.data_dir {
-        DATA_DIR_OVERRIDE.set(PathBuf::from(d)).ok();
-    }
 
     match cli.command {
         Commands::Add {
@@ -133,7 +141,7 @@ fn main() -> Result<()> {
             }
         }
         Commands::Gc => cmd_gc(),
-        Commands::Config { server, token } => cmd_config(server.as_deref(), token.as_deref()),
+        Commands::Config { server, token, data_dir } => cmd_config(server.as_deref(), token.as_deref(), data_dir.as_deref()),
     }
 }
 
@@ -222,7 +230,7 @@ fn cmd_list(tag: Option<&str>, json: bool) -> Result<()> {
             serde_json::to_string_pretty(&bookmarks)?
         );
     } else {
-        display_bookmarks(&bookmarks, &config.display);
+        print!("{}", display_bookmarks(&bookmarks, &config.display));
     }
     Ok(())
 }
@@ -264,7 +272,7 @@ fn cmd_search(
     if json {
         println!("{}", serde_json::to_string_pretty(&bookmarks)?);
     } else {
-        display_bookmarks(&bookmarks, &config.display);
+        print!("{}", display_bookmarks(&bookmarks, &config.display));
     }
     Ok(())
 }
@@ -522,7 +530,7 @@ fn cmd_sync_status() -> Result<()> {
     Ok(())
 }
 
-fn cmd_config(server: Option<&str>, token: Option<&str>) -> Result<()> {
+fn cmd_config(server: Option<&str>, token: Option<&str>, data_dir: Option<&str>) -> Result<()> {
     let config_path = config_dir()?.join("config.toml");
 
     let mut config = load_config();
@@ -533,11 +541,18 @@ fn cmd_config(server: Option<&str>, token: Option<&str>) -> Result<()> {
     if let Some(t) = token {
         config.server.token = Some(t.to_string());
     }
+    if let Some(d) = data_dir {
+        config.data_dir = Some(d.to_string());
+    }
 
-    if server.is_none() && token.is_none() {
+    if server.is_none() && token.is_none() && data_dir.is_none() {
         println!("Config file: {:?}", config_path);
         println!("Server URL: {}", config.server.url.as_deref().unwrap_or("(not set)"));
         println!("Token: {}", if config.server.token.is_some() { "(set)" } else { "(not set)" });
+        println!(
+            "Data dir: {}",
+            config.data_dir.as_deref().unwrap_or("(default: ~/.local/share/meshlet)")
+        );
         return Ok(());
     }
 
@@ -555,11 +570,14 @@ fn cmd_gc() -> Result<()> {
     Ok(())
 }
 
-fn display_bookmarks(bookmarks: &[Bookmark], config: &DisplayConfig) {
+fn display_bookmarks(bookmarks: &[Bookmark], config: &DisplayConfig) -> String {
+    use std::fmt::Write;
+
     let show_url = config.show_url.unwrap_or(true);
     let show_desc = config.show_desc.unwrap_or(true);
     let show_tags = config.show_tags.unwrap_or(true);
 
+    let mut out = String::new();
     for (i, bm) in bookmarks.iter().enumerate() {
         let idx = i + 1;
         let tag_str = if show_tags && !bm.tags.is_empty() {
@@ -575,21 +593,24 @@ fn display_bookmarks(bookmarks: &[Bookmark], config: &DisplayConfig) {
             String::new()
         };
 
-        println!(
+        writeln!(
+            out,
             " {:>4}. {}{}",
             idx.to_string().yellow(),
             bm.title.green(),
             tag_str.magenta()
-        );
+        )
+        .unwrap();
 
         if show_url && !bm.url.is_empty() {
-            println!("      > {}", bm.url.cyan());
+            writeln!(out, "      > {}", bm.url.cyan()).unwrap();
         }
         if show_desc && !bm.desc.is_empty() {
-            println!("      + {}", bm.desc.yellow());
+            writeln!(out, "      + {}", bm.desc.yellow()).unwrap();
         }
         if show_tags && !bm.tags.is_empty() {
-            println!(
+            writeln!(
+                out,
                 "      # {}",
                 bm.tags
                     .iter()
@@ -597,9 +618,11 @@ fn display_bookmarks(bookmarks: &[Bookmark], config: &DisplayConfig) {
                     .collect::<Vec<_>>()
                     .join(", ")
                     .magenta()
-            );
+            )
+            .unwrap();
         }
     }
+    out
 }
 
 fn parse_tags(input: &str) -> BTreeSet<String> {
@@ -608,4 +631,71 @@ fn parse_tags(input: &str) -> BTreeSet<String> {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeSet;
+
+    fn sample_bookmarks() -> Vec<Bookmark> {
+        vec![
+            Bookmark {
+                id: BookmarkId("01ARZ3NDEKTSV4RRFFQ69G5FAV".into()),
+                url: "https://loro.dev".into(),
+                title: "Loro CRDT".into(),
+                desc: "A high-performance CRDT framework".into(),
+                tags: ["crdt", "rust"].iter().map(|s| s.to_string()).collect::<BTreeSet<_>>(),
+                flags: 0,
+                created_at: 1719000000,
+                updated_at: 1719100000,
+            },
+            Bookmark {
+                id: BookmarkId("01ARZ3NDEKTSV4RRFFQ69G5FB0".into()),
+                url: "https://rust-lang.org".into(),
+                title: "Rust".into(),
+                desc: String::new(),
+                tags: ["lang"].iter().map(|s| s.to_string()).collect::<BTreeSet<_>>(),
+                flags: 1,
+                created_at: 1718000000,
+                updated_at: 1718100000,
+            },
+            Bookmark {
+                id: BookmarkId("01ARZ3NDEKTSV4RRFFQ69G5FB1".into()),
+                url: "https://example.com".into(),
+                title: "No Tags".into(),
+                desc: "Just a URL and description".into(),
+                tags: BTreeSet::new(),
+                flags: 0,
+                created_at: 1717000000,
+                updated_at: 1717100000,
+            },
+        ]
+    }
+
+    #[test]
+    fn snapshot_display_output() {
+        colored::control::set_override(false);
+        let config = DisplayConfig {
+            color: Some(false),
+            show_url: Some(true),
+            show_desc: Some(true),
+            show_tags: Some(true),
+        };
+        let output = display_bookmarks(&sample_bookmarks(), &config);
+        insta::assert_snapshot!(output);
+    }
+
+    #[test]
+    fn snapshot_display_output_minimal() {
+        colored::control::set_override(false);
+        let config = DisplayConfig {
+            show_url: Some(false),
+            show_desc: Some(false),
+            show_tags: Some(false),
+            ..Default::default()
+        };
+        let output = display_bookmarks(&sample_bookmarks(), &config);
+        insta::assert_snapshot!(output);
+    }
 }

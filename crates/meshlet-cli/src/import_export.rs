@@ -259,4 +259,67 @@ mod tests {
         assert_eq!(xml_escape("<tag>"), "&lt;tag&gt;");
         assert_eq!(xml_escape("\"quoted\""), "&quot;quoted&quot;");
     }
+
+    fn fixed_bookmarks() -> Vec<Bookmark> {
+        use std::collections::BTreeSet;
+        vec![
+            Bookmark {
+                id: BookmarkId("01ARZ3NDEKTSV4RRFFQ69G5FAV".into()),
+                url: "https://loro.dev".into(),
+                title: "Loro CRDT".into(),
+                desc: "A high-performance CRDT framework".into(),
+                tags: ["crdt", "rust"].iter().map(|s| s.to_string()).collect::<BTreeSet<_>>(),
+                flags: 0,
+                created_at: 1719000000,
+                updated_at: 1719100000,
+            },
+            Bookmark {
+                id: BookmarkId("01ARZ3NDEKTSV4RRFFQ69G5FB0".into()),
+                url: "https://rust-lang.org".into(),
+                title: "Rust".into(),
+                desc: String::new(),
+                tags: ["lang"].iter().map(|s| s.to_string()).collect::<BTreeSet<_>>(),
+                flags: 1,
+                created_at: 1718000000,
+                updated_at: 1718100000,
+            },
+            Bookmark {
+                id: BookmarkId("01ARZ3NDEKTSV4RRFFQ69G5FB1".into()),
+                url: "https://example.com/special?x=1&y=2".into(),
+                title: "Edge case: <script> & friends".into(),
+                desc: "Quotes \" and ampersands &".into(),
+                tags: BTreeSet::new(),
+                flags: 0,
+                created_at: 1717000000,
+                updated_at: 1717100000,
+            },
+        ]
+    }
+
+    #[test]
+    fn snapshot_markdown_export() {
+        let db = MeshletDb::open_in_memory().unwrap();
+        for b in fixed_bookmarks() {
+            db.add_bookmark(&b).unwrap();
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("export.md");
+        export_markdown(&path, &db).unwrap();
+        let content = std::fs::read_to_string(&path).unwrap();
+        insta::assert_snapshot!(content);
+    }
+
+    #[test]
+    fn snapshot_json_output_with_redaction() {
+        let db = MeshletDb::open_in_memory().unwrap();
+        for b in fixed_bookmarks() {
+            db.add_bookmark(&b).unwrap();
+        }
+        let bookmarks = db.list_from_mirror().unwrap();
+        insta::assert_json_snapshot!(&bookmarks, {
+            "[].id" => "[ULID]",
+            "[].created_at" => "[TS]",
+            "[].updated_at" => "[TS]",
+        });
+    }
 }

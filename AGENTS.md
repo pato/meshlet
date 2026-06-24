@@ -47,7 +47,7 @@ Dep graph: `cli → core, proto`. `server → core, proto`. `proto → loro, ser
 
 **Adding a CLI command.** Edit `args.rs` (add a `Commands` variant) and `main.rs` (add a `match` arm + a `cmd_*` fn). The `cmd_*` functions open `MeshletDb::open(&db_path()?)?` locally — they don't share a connection across commands.
 
-**Config.** `~/.config/meshlet/config.toml` is read by `load_config()` in `main.rs`. `Config`, `ServerConfig`, `DisplayConfig` derive `Serialize + Deserialize` so `meshlet config --server ... --token ...` can write the file back. `--data-dir` (global) overrides the data directory for testing/multi-profile.
+**Config.** `~/.config/meshlet/config.toml` is read by `load_config()` in `main.rs`. `Config`, `ServerConfig`, `DisplayConfig` derive `Serialize + Deserialize` so `meshlet config --server ... --token ...` can write the file back. The data directory is resolved in this order: `MESHLET_DATA_DIR` env var → `data_dir` field in config.toml → platform default (`~/.local/share/meshlet/`). There is no `--data-dir` CLI flag.
 
 ## Known deviations from PLAN.md (conscious decisions, not bugs)
 

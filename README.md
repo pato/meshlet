@@ -120,6 +120,8 @@ If two machines bookmark the same URL while offline, meshlet notices after sync 
 `~/.config/meshlet/config.toml` (or your platform's config dir):
 
 ```toml
+data_dir = "/path/to/bookmarks"   # optional, defaults to ~/.local/share/meshlet
+
 [server]
 url = "https://sync.example.com"
 token = "a-long-random-secret"
@@ -131,7 +133,7 @@ show_desc = true
 show_tags = true
 ```
 
-Data lives in `~/.local/share/meshlet/bookmarks.db` (or platform equivalent). Pass `--data-dir /path` to override, useful for testing or multiple profiles.
+Data lives in `~/.local/share/meshlet/bookmarks.db` (or platform equivalent). To use a different location, either set `data_dir` in the config file (`meshlet config --data-dir /path`) or export the `MESHLET_DATA_DIR` environment variable. The env var takes precedence over the config file, which takes precedence over the default.
 
 ## Status
 
