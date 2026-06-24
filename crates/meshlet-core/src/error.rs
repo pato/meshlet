@@ -8,6 +8,9 @@ pub enum MeshletError {
     #[error("loro error: {0}")]
     LoroError(#[from] loro::LoroError),
 
+    #[error("database error: {0}")]
+    DbError(#[from] rusqlite::Error),
+
     #[error("serialization error: {0}")]
     SerializationError(String),
 
