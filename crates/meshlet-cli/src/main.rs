@@ -404,7 +404,7 @@ fn cmd_open(index: usize) -> Result<()> {
         );
     }
 
-    let bookmark = &bookmarks[bookmarks.len() - index];
+    let bookmark = &bookmarks[index - 1];
     webbrowser::open(&bookmark.url).context("failed to open browser")?;
     println!("Opening: {}", bookmark.url.cyan());
 
