@@ -1,0 +1,24 @@
+[Unit]
+Description=Meshlet Server Sync Relay
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+ExecStart=/usr/local/bin/meshlet-server \
+    --bind 127.0.0.1:3123 \
+    --token SHARED_SECRET_TOKEN \
+    --data-dir /var/lib/meshlet-server
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/meshlet-server
+
+[Install]
+WantedBy=multi-user.target

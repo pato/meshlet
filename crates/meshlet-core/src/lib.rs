@@ -269,7 +269,7 @@ mod tests {
         assert_eq!(results[0].url, "https://loro.dev");
 
         let results = db.search_keywords(&["rust".into()], false, false).unwrap();
-        assert_eq!(results.len(), 1);
+        assert_eq!(results.len(), 2);
         assert_eq!(results[0].url, "https://rust-lang.org");
 
         let results = db.search_by_tags(&["crdt".into()]).unwrap();

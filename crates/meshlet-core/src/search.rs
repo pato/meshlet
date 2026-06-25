@@ -59,13 +59,13 @@ pub fn search_keywords(
         let param_name = format!("kw{}", i);
         if deep {
             conditions.push(format!(
-                "(url LIKE '%' || :{} || '%' OR title LIKE '%' || :{} || '%' OR desc LIKE '%' || :{} || '%')",
-                param_name, param_name, param_name
+                "(url LIKE '%' || :{} || '%' OR title LIKE '%' || :{} || '%' OR desc LIKE '%' || :{} || '%' OR id IN (SELECT bookmark_id FROM bookmark_tags WHERE tag LIKE '%' || :{} || '%'))",
+                param_name, param_name, param_name, param_name
             ));
         } else {
             conditions.push(format!(
-                "(url LIKE :{} OR title LIKE :{} OR desc LIKE :{})",
-                param_name, param_name, param_name
+                "(url LIKE :{} OR title LIKE :{} OR desc LIKE :{} OR id IN (SELECT bookmark_id FROM bookmark_tags WHERE tag LIKE :{}))",
+                param_name, param_name, param_name, param_name
             ));
         }
         params_list.push(format!("%{}%", kw));

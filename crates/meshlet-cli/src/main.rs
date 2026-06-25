@@ -64,8 +64,9 @@ fn data_dir() -> Result<PathBuf> {
 }
 
 fn config_dir() -> Result<PathBuf> {
-    let dir = dirs::config_dir()
-        .context("could not find config directory")?
+    let dir = dirs::home_dir()
+        .context("could not find home directory")?
+        .join(".config")
         .join("meshlet");
     std::fs::create_dir_all(&dir).context("could not create config directory")?;
     Ok(dir)
